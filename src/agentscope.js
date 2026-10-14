@@ -143,9 +143,15 @@ class AgentScope {
   /** List the platform's side credits balance. */
   credits() { return this._call('/users/me/credits'); }
 
-  /** List model ids the platform advertises (OpenAI-compatible shape). */
-  async listModels() {
-    const { ok, data, text } = await this._fetch(`${V1}/models`, { headers: { Accept: 'application/json' } });
+  /**
+   * List model ids the platform advertises (OpenAI-compatible shape).
+   * Pass the minted `sk-as-…` key; defaults to the login token, which the
+   * inference endpoint rejects, so always pass `apiKey` after minting.
+   */
+  async listModels(apiKey = this.apiKey || this.token) {
+    const { ok, data, text } = await this._fetch(`${V1}/models`, {
+      headers: { Accept: 'application/json', Authorization: `Bearer ${apiKey}` },
+    });
     if (!ok) throw new Error(`listModels -> ${text.slice(0, 120)}`);
     return (data && data.data ? data.data : []).map((m) => m.id);
   }
@@ -184,11 +190,12 @@ async function provisionAccount({ inbox, waitCode, password, transport = null, l
   const keyData = await client.resetModelApiKey();
   const d = (keyData && keyData.data) || {};
   if (!d.api_key) throw new Error('no api_key in reset response');
+  client.apiKey = d.api_key;
 
   let userinfo = null;
   let models = [];
   try { userinfo = await client.userinfo(); } catch { /* optional */ }
-  try { models = await client.listModels(); } catch { /* optional */ }
+  try { models = await client.listModels(d.api_key); } catch { /* optional */ }
 
   return {
     email: inbox.address,
@@ -203,4 +210,100 @@ async function provisionAccount({ inbox, waitCode, password, transport = null, l
   };
 }
 
-module.exports = { AgentScope, CookieJar, provisionAccount, ORIGIN, API, V1, UA };
+/**
+ * Wait for the verification code, re-sending it periodically. AgentScope's
+ * mail gateway is slow and occasionally drops a send, so a single request can
+ * take minutes or never arrive; a fresh send usually lands faster.
+ *
+ * @param {object}   opts
+ * @param {object}   opts.client   AgentScope client
+ * @param {string}   opts.email    account address
+ * @param {function} opts.fetchCode async () => code|null, polls the inbox once
+ * @param {function} [opts.log]
+ * @param {number}   [opts.timeoutMs]  total budget (default 300000)
+ * @param {number}   [opts.resendMs]   re-request interval (default 60000)
+ */
+async function waitForCode({ client, email, fetchCode, log = () => {}, timeoutMs = 300000, resendMs = 60000 }) {
+  const deadline = Date.now() + timeoutMs;
+  let nextResend = Date.now() + resendMs;
+  let attempt = 0;
+  while (Date.now() < deadline) {
+    const code = await fetchCode();
+    if (code) return code;
+    if (Date.now() >= nextResend) {
+      attempt++;
+      try {
+        await client.sendVerifyCode(email, 'register');
+        log(`      re-sent code (attempt ${attempt + 1})`);
+      } catch (e) {
+        log(`      re-send failed: ${e.message}`);
+      }
+      nextResend = Date.now() + resendMs;
+    }
+    await new Promise((r) => setTimeout(r, 4000));
+  }
+  return null;
+}
+
+/**
+ * Provision one account, retrying the whole flow on a fresh inbox when the
+ * verification e-mail never arrives. AgentScope's mail delivery is
+ * intermittent, so a naive single attempt fails a fraction of the time; a new
+ * inbox usually lands on the next try.
+ *
+ * @param {object}   opts
+ * @param {function} opts.makeInbox  async () => inbox (e.g. () => mail.createInbox())
+ * @param {function} opts.mailboxFor async (inbox) => mailbox helper with waitForMessage/extractCode
+ * @param {string}   [opts.password]
+ * @param {object}   [opts.transport]
+ * @param {number}   [opts.attempts] max inbox attempts (default 3)
+ * @param {function} [opts.log]
+ */
+async function provisionWithRetry({
+  makeInbox,
+  mailboxFor,
+  password,
+  transport = null,
+  attempts = 3,
+  timeoutMs = 300000,
+  resendMs = 90000,
+  log = () => {},
+}) {
+  let lastErr;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      const inbox = await makeInbox();
+      const mailbox = mailboxFor(inbox);
+      log(`inbox ${inbox.address} (attempt ${attempt}/${attempts})`);
+      const client = new AgentScope({ transport });
+      return await provisionAccount({
+        inbox,
+        transport,
+        password,
+        log,
+        waitCode: () => waitForCode({
+          client,
+          email: inbox.address,
+          timeoutMs,
+          resendMs,
+          log,
+          fetchCode: async () => {
+            const msg = await mailbox.waitForMessage(
+              inbox.token,
+              /AgentScope|验证码|verify/i,
+              { timeoutMs: 12000, intervalMs: 3000 },
+            );
+            return msg ? mailbox.extractCode(msg) : null;
+          },
+        }),
+      });
+    } catch (e) {
+      lastErr = e;
+      log(`attempt ${attempt} failed: ${e.message}`);
+      if (attempt < attempts) await new Promise((r) => setTimeout(r, 2000));
+    }
+  }
+  throw lastErr || new Error('provisioning failed');
+}
+
+module.exports = { AgentScope, CookieJar, provisionAccount, provisionWithRetry, waitForCode, ORIGIN, API, V1, UA };

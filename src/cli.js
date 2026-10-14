@@ -17,9 +17,10 @@
 const fs = require('fs');
 const path = require('path');
 const { MailTM, extractCode } = require('./mailtm');
+const { GenericInbox } = require('./generic-inbox');
 const { BrowserTransport } = require('./browser-transport');
 const { ProxyTransport } = require('./proxy');
-const { provisionAccount } = require('./agentscope');
+const { provisionAccount, provisionWithRetry, waitForCode } = require('./agentscope');
 const router = require('./connect-9router');
 
 const VERSION = require('../package.json').version;
@@ -68,7 +69,7 @@ async function main() {
   const outCsv = args.csv || null;
   const delayMs = parseInt(args.delay || '2000', 10);
   const password = args.password || null;
-  const verifyTimeout = parseInt(args['code-timeout'] || '150000', 10);
+  const verifyTimeout = parseInt(args['code-timeout'] || '300000', 10);
   const proxyUrl = args.proxy || process.env.AGENTSCOPE_PROXY || null;
 
   banner();
@@ -96,7 +97,10 @@ async function main() {
     console.log('  browser ready\n');
   }
 
-  const mail = new MailTM({ transport });
+  const mail = GenericInbox.configured()
+    ? new GenericInbox({}, { transport })
+    : new MailTM({ transport });
+  console.log(`  inbox      : ${mail instanceof GenericInbox ? 'custom (INBOX_* env)' : 'mail.tm'}`);
 
   let routerCookie = null;
   if (connectRouter) {
@@ -111,19 +115,14 @@ async function main() {
   for (let i = 1; i <= count; i++) {
     console.log(`──────── account ${i}/${count} ────────`);
     try {
-      const inbox = await mail.createInbox();
-      console.log(`  inbox: ${inbox.address}`);
-      const acct = await provisionAccount({
-        inbox,
+      const acct = await provisionWithRetry({
+        makeInbox: () => mail.createInbox(),
+        mailboxFor: () => mail,
         transport,
         password,
-        waitCode: async () => {
-          const msg = await mail.waitForMessage(inbox.token, /AgentScope|验证码|verify/i, { timeoutMs: verifyTimeout });
-          if (!msg) throw new Error(`verification e-mail not received within ${verifyTimeout / 1000}s`);
-          const code = extractCode(msg);
-          if (!code) throw new Error(`could not parse a code from subject "${msg.subject}"`);
-          return code;
-        },
+        attempts: parseInt(args['attempts'] || '3', 10),
+        timeoutMs: verifyTimeout,
+        resendMs: parseInt(args['resend'] || '90000', 10),
         log: (m) => console.log('  ' + m),
       });
       console.log(`  ✓ key: ${acct.apiKey.slice(0, 14)}… (${acct.models.length} models)`);
@@ -197,7 +196,9 @@ Options:
   --out <file>             JSON output path                           (default accounts.json)
   --csv <file>             also write a CSV
   --delay <ms>             pause between accounts                     (default 2000)
-  --code-timeout <ms>      how long to wait for the e-mail code       (default 150000)
+  --code-timeout <ms>      total wait budget for the e-mail code       (default 300000)
+  --resend <ms>            re-request the code every N ms while waiting (default 90000)
+  --attempts <n>           fresh-inbox attempts before giving up       (default 3)
   --help                   show this help
 
 Transport (pick one):
@@ -207,8 +208,15 @@ Transport (pick one):
 Env: AGENTSCOPE_PROXY / AGENTSCOPE_PROXY_FILE (one proxy per line),
      BU_CDP_WS (cloud browser CDP URL).
 
-Note: AgentScope's verification-e-mail gateway drops requests from low-reputation
-datacenter IPs. Run behind a residential proxy (--proxy) for reliable delivery.
+Inbox (default mail.tm; override with a custom provider):
+  INBOX_CREATE_URL, INBOX_LIST_URL, INBOX_READ_URL,
+  INBOX_ADDRESS_PATH, INBOX_TOKEN_PATH, INBOX_LIST_PATH, INBOX_BODY_FIELDS
+  See src/generic-inbox.js for the JSON contract.
+
+Note: AgentScope's verification-e-mail gateway is IP-sensitive and also filters
+some disposable-mail domains, so deliverability varies. If mail.tm stops
+delivering, point the INBOX_* env vars at another inbox provider, or run behind
+a residential proxy (--proxy).
 `;
 
 main().catch((e) => { console.error('\n[fatal] ' + e.message); process.exit(1); });

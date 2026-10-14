@@ -146,7 +146,13 @@ See [`STRUCTURE.md`](STRUCTURE.md) for the full tree and data-flow diagram.
 
 ## ⚠️ Notes & limits
 
-- **E-mail delivery is IP-sensitive.** Use a residential proxy or a real browser.
+- **E-mail delivery is IP-sensitive *and* domain-sensitive.** AgentScope's gateway
+  drops sends from low-reputation datacenter IPs, and it also filters some
+  disposable-mail domains (mail.tm was served for a while and later blocked).
+  If no code arrives, either run behind a residential proxy (`--proxy`) or point
+  the toolkit at a different inbox via the `INBOX_*` env vars
+  (see [`src/generic-inbox.js`](src/generic-inbox.js)) — the inbox provider is
+  pluggable, so you are never stuck with one that is blocked.
 - **Verification e-mails are rate-limited per account/IP.** Space out large batches; the toolkit writes results after every account so a crash never loses progress.
 - `deepseek-v4-flash` is advertised by `/v1/models` but returns *“Model not exist”* — an upstream issue, not this toolkit.
 - For personal/educational automation. Respect AgentScope's and 9Router's terms of service.
