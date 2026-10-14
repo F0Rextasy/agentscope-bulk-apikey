@@ -1,0 +1,20 @@
+# dependencies
+node_modules/
+
+# generated results (contain secrets: API keys & passwords)
+accounts.json
+accounts.csv
+outputs/
+*.csv
+*.json
+
+# env
+.env
+.env.*
+
+# os / editor
+.DS_Store
+Thumbs.db
+*.log
+.idea/
+.vscode/

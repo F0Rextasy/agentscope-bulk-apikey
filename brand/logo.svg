@@ -1,0 +1,48 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="agentscope-bulk logo">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0B1220"/>
+      <stop offset="1" stop-color="#111C33"/>
+    </linearGradient>
+    <linearGradient id="ring" x1="96" y1="96" x2="416" y2="416" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5B9DFF"/>
+      <stop offset="0.5" stop-color="#7C6CFF"/>
+      <stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient>
+    <linearGradient id="key" x1="300" y1="200" x2="420" y2="330" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3DDC97"/>
+      <stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="10" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <rect x="24" y="24" width="464" height="464" rx="92" stroke="url(#ring)" stroke-opacity="0.25" stroke-width="2"/>
+
+  <!-- orbit ring -->
+  <circle cx="256" cy="256" r="150" stroke="url(#ring)" stroke-width="8" stroke-opacity="0.9" fill="none"/>
+  <circle cx="256" cy="106" r="16" fill="url(#ring)"/>
+  <circle cx="386" cy="331" r="12" fill="#22D3EE"/>
+  <circle cx="126" cy="331" r="12" fill="#7C6CFF"/>
+
+  <!-- core knot -->
+  <path d="M256 176c34 0 62 28 62 62 0 26-16 44-34 44-14 0-24-10-24-24 0-11 8-20 20-20"
+        stroke="url(#ring)" stroke-width="14" stroke-linecap="round" fill="none" filter="url(#glow)"/>
+  <path d="M256 336c-34 0-62-28-62-62 0-26 16-44 34-44 14 0 24 10 24 24 0 11-8 20-20 20"
+        stroke="#5B9DFF" stroke-width="14" stroke-linecap="round" fill="none"/>
+
+  <!-- key badge -->
+  <g transform="translate(300 268)">
+    <rect x="0" y="0" width="150" height="96" rx="24" fill="url(#key)" filter="url(#glow)"/>
+    <circle cx="40" cy="48" r="17" fill="none" stroke="#06121B" stroke-width="9"/>
+    <rect x="60" y="40" width="66" height="15" rx="7" fill="#06121B"/>
+    <rect x="98" y="40" width="12" height="30" rx="5" fill="#06121B"/>
+    <rect x="120" y="40" width="12" height="24" rx="5" fill="#06121B"/>
+  </g>
+
+  <!-- arrow into router -->
+  <path d="M118 122h64m0 0-18-18m18 18-18 18" stroke="url(#ring)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>
