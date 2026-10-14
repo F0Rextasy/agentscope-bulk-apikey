@@ -88,6 +88,25 @@ Models   : agentscope/qwen3.8-flash, agentscope/qwen3.7-plus, agentscope/qwen3.8
            agentscope/kimi-k3, agentscope/glm-5.2
 ```
 
+## 🧠 利用可能なモデル
+
+`sk-as-…` キーは以下のモデルを提供します（`GET /v1/models` より）。9Router 経由では
+`agentscope/` プレフィックスでルーティングされます:
+
+| モデル             | 9Router での呼び出し             | 状態                                        |
+| ------------------ | -------------------------------- | ------------------------------------------- |
+| qwen3.8-flash      | `agentscope/qwen3.8-flash`       | ✅ 動作                                      |
+| qwen3.7-plus       | `agentscope/qwen3.7-plus`        | ✅ 動作                                      |
+| qwen3.8-max        | `agentscope/qwen3.8-max`         | ✅ 動作                                      |
+| kimi-k3            | `agentscope/kimi-k3`             | ✅ 動作                                      |
+| glm-5.2            | `agentscope/glm-5.2`             | ✅ 動作                                      |
+| deepseek-v4-flash  | `agentscope/deepseek-v4-flash`   | ⚠️ 一覧にはあるが chat は *"Model not exist"*（AgentScope 側） |
+
+`deepseek-v4-flash` は `GET /v1/models` に載っていますがチャットエンドポイントは
+拒否します — AgentScope 側のバグで、このツールキットの問題ではありません。推論
+エンドポイントは発行済みの `sk-as-…` キーのみを受け付け、ログイントークンは
+`ASP.PROXY.API_KEY_INVALID` で拒否されます。
+
 ## 📚 ライブラリとして
 
 ```js

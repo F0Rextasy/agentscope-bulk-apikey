@@ -88,6 +88,25 @@ Model    : agentscope/qwen3.8-flash, agentscope/qwen3.7-plus, agentscope/qwen3.8
            agentscope/kimi-k3, agentscope/glm-5.2
 ```
 
+## 🧠 Model yang tersedia
+
+Kunci `sk-as-…` melayani model berikut (dari `GET /v1/models`), dirutekan lewat
+9Router dengan prefiks `agentscope/`:
+
+| Model              | Panggil sebagai 9Router         | Status                                   |
+| ------------------ | ------------------------------- | ---------------------------------------- |
+| qwen3.8-flash      | `agentscope/qwen3.8-flash`      | ✅ berfungsi                              |
+| qwen3.7-plus       | `agentscope/qwen3.7-plus`       | ✅ berfungsi                              |
+| qwen3.8-max        | `agentscope/qwen3.8-max`        | ✅ berfungsi                              |
+| kimi-k3            | `agentscope/kimi-k3`            | ✅ berfungsi                              |
+| glm-5.2            | `agentscope/glm-5.2`            | ✅ berfungsi                              |
+| deepseek-v4-flash  | `agentscope/deepseek-v4-flash`  | ⚠️ terdaftar, chat → *"Model not exist"* (sisi AgentScope) |
+
+`deepseek-v4-flash` ada di `GET /v1/models` tetapi endpoint chat menolaknya —
+bug di sisi AgentScope, bukan toolkit ini. Endpoint inferensi hanya menerima
+kunci `sk-as-…` hasil mint; token login ditolak dengan
+`ASP.PROXY.API_KEY_INVALID`.
+
 ## 📚 Sebagai library
 
 ```js

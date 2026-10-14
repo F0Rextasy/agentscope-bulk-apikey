@@ -104,6 +104,31 @@ curl http://localhost:20128/v1/chat/completions \
   -d '{"model":"agentscope/qwen3.8-flash","messages":[{"role":"user","content":"hi"}]}'
 ```
 
+## 🧠 Available models
+
+An `sk-as-…` key serves these models (as returned by `GET /v1/models`), routed
+through 9Router under the `agentscope/` prefix:
+
+| Model                     | Call as in 9Router                | Status                     |
+| ------------------------- | --------------------------------- | -------------------------- |
+| qwen3.8-flash             | `agentscope/qwen3.8-flash`        | ✅ works                    |
+| qwen3.7-plus              | `agentscope/qwen3.7-plus`         | ✅ works                    |
+| qwen3.8-max               | `agentscope/qwen3.8-max`          | ✅ works                    |
+| kimi-k3                   | `agentscope/kimi-k3`              | ✅ works                    |
+| glm-5.2                   | `agentscope/glm-5.2`              | ✅ works                    |
+| deepseek-v4-flash         | `agentscope/deepseek-v4-flash`    | ⚠️ advertised, chat → *"Model not exist"* (upstream) |
+
+`deepseek-v4-flash` is listed by `GET /v1/models` but the chat endpoint rejects
+it — an AgentScope-side bug, not this toolkit. To refresh the list for your own
+account:
+
+```bash
+curl https://platform.agentscope.io/v1/models -H "Authorization: Bearer sk-as-<your key>"
+```
+
+Note: the inference endpoint only accepts the minted `sk-as-…` key — the login
+token is rejected with `ASP.PROXY.API_KEY_INVALID`.
+
 ## 📚 As a library
 
 ```js

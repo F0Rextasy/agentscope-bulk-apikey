@@ -88,6 +88,24 @@ Models   : agentscope/qwen3.8-flash, agentscope/qwen3.7-plus, agentscope/qwen3.8
            agentscope/kimi-k3, agentscope/glm-5.2
 ```
 
+## 🧠 可用模型
+
+`sk-as-…` 密钥提供以下模型（来自 `GET /v1/models`），经 9Router 以 `agentscope/`
+前缀路由：
+
+| 模型               | 在 9Router 中调用                | 状态                                      |
+| ------------------ | -------------------------------- | ----------------------------------------- |
+| qwen3.8-flash      | `agentscope/qwen3.8-flash`       | ✅ 可用                                    |
+| qwen3.7-plus       | `agentscope/qwen3.7-plus`        | ✅ 可用                                    |
+| qwen3.8-max        | `agentscope/qwen3.8-max`         | ✅ 可用                                    |
+| kimi-k3            | `agentscope/kimi-k3`             | ✅ 可用                                    |
+| glm-5.2            | `agentscope/glm-5.2`             | ✅ 可用                                    |
+| deepseek-v4-flash  | `agentscope/deepseek-v4-flash`   | ⚠️ 已列出，但聊天返回 *"Model not exist"*（AgentScope 侧问题） |
+
+`deepseek-v4-flash` 出现在 `GET /v1/models` 中，但聊天端点拒绝它 —— 这是
+AgentScope 侧的 bug，与本工具无关。推理端点只接受铸造出的 `sk-as-…` 密钥，
+登录令牌会被拒绝（`ASP.PROXY.API_KEY_INVALID`）。
+
 ## 📚 作为库使用
 
 ```js

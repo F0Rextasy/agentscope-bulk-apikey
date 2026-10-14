@@ -88,6 +88,25 @@ Models   : agentscope/qwen3.8-flash, agentscope/qwen3.7-plus, agentscope/qwen3.8
            agentscope/kimi-k3, agentscope/glm-5.2
 ```
 
+## 🧠 Modelos disponibles
+
+Una clave `sk-as-…` sirve estos modelos (según `GET /v1/models`), enrutados a
+través de 9Router con el prefijo `agentscope/`:
+
+| Modelo             | Llamar como en 9Router           | Estado                                    |
+| ------------------ | -------------------------------- | ----------------------------------------- |
+| qwen3.8-flash      | `agentscope/qwen3.8-flash`       | ✅ funciona                                |
+| qwen3.7-plus       | `agentscope/qwen3.7-plus`        | ✅ funciona                                |
+| qwen3.8-max        | `agentscope/qwen3.8-max`         | ✅ funciona                                |
+| kimi-k3            | `agentscope/kimi-k3`             | ✅ funciona                                |
+| glm-5.2            | `agentscope/glm-5.2`             | ✅ funciona                                |
+| deepseek-v4-flash  | `agentscope/deepseek-v4-flash`   | ⚠️ listado, chat → *"Model not exist"* (lado AgentScope) |
+
+`deepseek-v4-flash` aparece en `GET /v1/models` pero el endpoint de chat lo
+rechaza — un bug del lado de AgentScope, no de este toolkit. El endpoint de
+inferencia solo acepta la clave `sk-as-…` generada; el token de inicio de sesión
+se rechaza con `ASP.PROXY.API_KEY_INVALID`.
+
 ## 📚 Como biblioteca
 
 ```js
