@@ -99,7 +99,10 @@ class AgentScope {
   async _call(path, opts = {}) {
     const { ok, status, data, text } = await this._fetch(path, opts);
     if (!ok) {
-      const msg = (data && (data.message || data.error || data.detail)) || text.slice(0, 200);
+      // The API nests its errors (`{ error: { code, message } }`), so an object
+      // field printed as "[object Object]" hid the reason behind a 429.
+      const raw = data && (data.message || data.error || data.detail);
+      const msg = typeof raw === 'string' && raw ? raw : raw ? JSON.stringify(raw).slice(0, 300) : text.slice(0, 200);
       const err = new Error(`AgentScope ${opts.method || 'GET'} ${path} -> ${status}: ${msg}`);
       err.status = status;
       err.body = data;

@@ -40,7 +40,12 @@ async function req(url, { method = 'GET', token, body, transport } = {}) {
     ...(body ? { 'Content-Type': 'application/json' } : {}),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
-  if (transport) {
+  // A local inbox broker is reached directly: the browser transport evaluates
+  // fetches inside the AgentScope page, where http://127.0.0.1 would be blocked
+  // as mixed content, and through a proxy it would leave the machine for no
+  // reason at all.
+  const isLocal = /^https?:\/\/(127\.0\.0\.1|localhost|\[::1\])(?::\d+)?\//i.test(url);
+  if (transport && !isLocal) {
     const r = await transport.request(url, { method, headers, body });
     if (!r.ok) throw new Error(`inbox ${method} ${url} -> ${r.status}`);
     return JSON.parse(r.text);
@@ -106,16 +111,20 @@ class GenericInbox {
   }
 
   async waitForMessage(inbox, matcher, { timeoutMs = 120000, intervalMs = 4000 } = {}) {
+    // provisionWithRetry() calls this with `inbox.token` (the shape MailTM's own
+    // waitForMessage expects), so accept both a token string and an inbox object
+    // instead of silently polling with an empty token.
+    const box = typeof inbox === 'string' ? { token: inbox } : inbox;
     const deadline = Date.now() + timeoutMs;
     const seen = new Set();
     while (Date.now() < deadline) {
-      const messages = await this.listMessages(inbox);
+      const messages = await this.listMessages(box);
       for (const m of messages) {
         if (seen.has(m.id)) continue;
         seen.add(m.id);
         const subject = m.subject || '';
         if (matcher && !matcher.test(subject)) continue;
-        const full = (await this.getMessage(inbox, m.id)) || m;
+        const full = (await this.getMessage(box, m.id)) || m;
         return { id: m.id, subject, from: m.from, ...full };
       }
       await new Promise((r) => setTimeout(r, intervalMs));
