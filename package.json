@@ -1,0 +1,38 @@
+{
+  "name": "agentscope-bulk-apikey",
+  "version": "1.0.0",
+  "description": "Bulk-create AgentScope Platform accounts and mint one Model API key each. Zero dependencies.",
+  "license": "MIT",
+  "type": "commonjs",
+  "bin": {
+    "agentscope-bulk": "src/cli.js",
+    "agentscope-bulk-launcher": "src/launcher.js"
+  },
+  "main": "src/agentscope.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node src/launcher.js",
+    "mint": "node src/cli.js",
+    "create": "node src/cli.js --count 1",
+    "9router": "node src/connect-9router.js"
+  },
+  "keywords": [
+    "api-key",
+    "bulk",
+    "register",
+    "launcher",
+    "agentscope",
+    "apikey"
+  ],
+  "files": [
+    "src",
+    "docs",
+    "examples",
+    "i18n",
+    "brand",
+    "README.md",
+    "LICENSE"
+  ]
+}

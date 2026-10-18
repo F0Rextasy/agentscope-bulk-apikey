@@ -47,6 +47,31 @@ node src/cli.js \
 
 That prints the created account, its `sk-as-…` key, the 9Router connection id, and the router endpoint + key you can point any OpenAI-compatible tool at.
 
+### 🖱️ The launcher
+
+```
+╔═════════════════════════════════════════════════════════════════════════════════════════╗
+║                                                                                         ║
+║   █████╗  ██████╗ ███████╗███╗   ██╗████████╗███████╗ ██████╗ ██████╗ ██████╗ ███████╗  ║
+║  ██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝██╔════╝██╔════╝██╔═══██╗██╔══██╗██╔════╝  ║
+║  ███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║   ███████╗██║     ██║   ██║██████╔╝█████╗    ║
+║  ██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║   ╚════██║██║     ██║   ██║██╔═══╝ ██╔══╝    ║
+║  ██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║   ███████║╚██████╗╚██████╔╝██║     ███████╗  ║
+║  ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝   ╚══════╝ ╚═════╝ ╚═════╝ ╚═╝     ╚══════╝  ║
+║                                                                                         ║
+║  agentscope-bulk-apikey                                                                 ║
+║  one account → one key, proxy or CDP transport                                          ║
+║                                                                                         ║
+╚═════════════════════════════════════════════════════════════════════════════════════════╝
+  agentscope-bulk-apikey contributors · MIT
+```
+
+`node src/launcher.js` (or `npm start`) asks for the account count, the proxy
+line or CDP endpoint, the output files and the e-mail-code budget, remembers the
+answers in `launcher.config.json`, and runs the CLI with the right flags. The
+last menu item walks `accounts.json` and registers every key with a local
+9Router in one pass (`node src/launcher.js --connect-9router`).
+
 ## 🛠 Usage
 
 ```bash

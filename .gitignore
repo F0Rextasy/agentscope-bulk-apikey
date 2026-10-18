@@ -6,7 +6,7 @@ accounts.json
 accounts.csv
 outputs/
 *.csv
-*.json
+launcher.config.json
 
 # env
 .env
