@@ -13,8 +13,11 @@
  * request — the combination AgentScope's mail gateway reliably accepts.
  */
 
+const crypto = require('crypto');
 const BASE = 'https://api.mail.tm';
 const UA = 'agentscope-bulk-9router/1.0 (+https://github.com/0xgetz/agentscope-bulk-apikey)';
+/** Every outbound call gets a deadline so a dead connection cannot stall a batch. */
+const FETCH_TIMEOUT_MS = 60000;
 
 function makeFetcher(transport) {
   return async function fetcher(path, { method = 'GET', token, body } = {}) {
@@ -35,6 +38,7 @@ function makeFetcher(transport) {
         method,
         headers,
         ...(body ? { body: JSON.stringify(body) } : {}),
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
       });
       status = res.status;
       text = await res.text();
@@ -47,6 +51,13 @@ function makeFetcher(transport) {
     }
     return json;
   };
+}
+
+/** Verification-code rule, shared by every inbox adapter. */
+function extractCodeFrom(text) {
+  const t = String(text || '');
+  const m = /\b(\d{6})\b/.exec(t) || /\b(\d{4,8})\b/.exec(t);
+  return m ? m[1] : null;
 }
 
 class MailTM {
@@ -69,7 +80,7 @@ class MailTM {
   async createInbox({ localPart, password, domain } = {}) {
     const dom = domain || (await this.pickDomain());
     const user = localPart || `as${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
-    const pass = password || `As!${Math.random().toString(36).slice(2, 10)}Aa1`;
+    const pass = password || `As!${crypto.randomBytes(6).toString('hex')}Aa1`;
     const address = `${user}@${dom}`;
     await this.req('/accounts', { method: 'POST', body: { address, password: pass } });
     const { token } = await this.req('/token', { method: 'POST', body: { address, password: pass } });
@@ -118,12 +129,10 @@ class MailTM {
     return null;
   }
 
-  /** Extract the first 4-8 digit numeric code from a message. */
+  /** Extract the 6-digit verification code from a message. */
   static extractCode(message) {
-    const haystack = [message.subject, message.intro, message.text, message.html].filter(Boolean).join('\n');
-    const m = haystack.match(/\b(\d{4,8})\b/);
-    return m ? m[1] : null;
+    return extractCodeFrom([message.subject, message.intro, message.text, message.html].filter(Boolean).join('\n'));
   }
 }
 
-module.exports = { MailTM, BASE, extractCode: MailTM.extractCode };
+module.exports = { MailTM, BASE, extractCode: MailTM.extractCode, extractCodeFrom };

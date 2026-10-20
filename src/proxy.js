@@ -22,6 +22,7 @@
 const http = require('http');
 const https = require('https');
 const net = require('net');
+const dns = require('dns');
 const tls = require('tls');
 const { URL } = require('url');
 
@@ -71,13 +72,17 @@ function basicAuth(p) {
 }
 
 /** Open a TCP/TLS socket to the proxy and CONNECT to the target host:port. */
-function httpConnect(proxy, targetHost, targetPort) {
+function httpConnect(proxy, targetHost, targetPort, timeoutMs = 60000) {
   return new Promise((resolve, reject) => {
     const socket = proxy.scheme === 'https'
       ? tls.connect({ host: proxy.host, port: proxy.port, servername: proxy.host })
       : net.connect({ host: proxy.host, port: proxy.port });
 
     const onError = (e) => { socket.destroy(); reject(e); };
+    socket.setTimeout(timeoutMs, () => {
+      socket.destroy();
+      reject(new Error(`proxy CONNECT timed out after ${timeoutMs}ms`));
+    });
     socket.once('error', onError);
 
     const proceed = () => {
@@ -95,6 +100,7 @@ function httpConnect(proxy, targetHost, targetPort) {
         const end = buf.indexOf('\r\n\r\n');
         if (end === -1) return;
         socket.removeListener('data', onData);
+        socket.setTimeout(0);
         socket.removeListener('error', onError);
         const status = buf.split('\r\n')[0];
         if (!/ 200 /.test(status)) {
@@ -112,10 +118,14 @@ function httpConnect(proxy, targetHost, targetPort) {
 }
 
 /** Minimal SOCKS5 handshake (no auth or username/password auth). */
-function socks5Connect(proxy, targetHost, targetPort, remoteDns) {
+function socks5Connect(proxy, targetHost, targetPort, remoteDns, timeoutMs = 60000) {
   return new Promise((resolve, reject) => {
     const socket = net.connect({ host: proxy.host, port: proxy.port });
     socket.once('error', reject);
+    socket.setTimeout(timeoutMs, () => {
+      socket.destroy();
+      reject(new Error(`socks5 handshake timed out after ${timeoutMs}ms`));
+    });
 
     socket.once('connect', () => {
       const methods = proxy.username ? [0x00, 0x02] : [0x00];
@@ -123,48 +133,62 @@ function socks5Connect(proxy, targetHost, targetPort, remoteDns) {
     });
 
     let stage = 'greeting';
-    const onData = (data) => {
-      if (stage === 'greeting') {
-        if (data[1] === 0xff) { socket.destroy(); return reject(new Error('socks5: no acceptable auth method')); }
-        if (data[1] === 0x02) {
-          const u = Buffer.from(proxy.username);
-          const pw = Buffer.from(proxy.password);
-          const buf = Buffer.concat([Buffer.from([0x01, u.length]), u, Buffer.from([pw.length]), pw]);
-          socket.write(buf);
-          stage = 'auth';
-          return;
+    let pending = Buffer.alloc(0);
+    // A reply may arrive split over several TCP reads (normal for a remote
+    // proxy), so only act once the whole frame is buffered.
+    const onData = (chunk) => {
+      pending = Buffer.concat([pending, chunk]);
+      for (;;) {
+        if (stage !== 'connect') {
+          if (pending.length < 2) return;
+          const method = pending[1];
+          pending = pending.slice(2);
+          if (method === 0xff) { socket.destroy(); return reject(new Error('socks5: no acceptable auth method')); }
+          if (method === 0x02 && stage === 'greeting') {
+            const u = Buffer.from(proxy.username);
+            const pw = Buffer.from(proxy.password);
+            socket.write(Buffer.concat([Buffer.from([0x01, u.length]), u, Buffer.from([pw.length]), pw]));
+            stage = 'auth';
+            continue;
+          }
+          if (stage === 'auth' && method !== 0x00) { socket.destroy(); return reject(new Error('socks5: auth failed')); }
+          stage = 'connect';
+          sendConnect();
+          continue;
         }
-        stage = 'connect';
-        sendConnect();
-        return;
+        // connect reply: VER REP RSV ATYP ADDR PORT
+        if (pending.length < 4) return;
+        const atyp = pending[3];
+        if (atyp === 0x03 && pending.length < 5) return;
+        const addrLen = atyp === 0x01 ? 4 : atyp === 0x04 ? 16 : pending[4] + 1;
+        const total = 4 + addrLen + 2;
+        if (pending.length < total) return;
+        const status = pending[1];
+        pending = pending.slice(total);
+        if (status !== 0x00) { socket.destroy(); return reject(new Error(`socks5: connect failed code ${status}`)); }
+        socket.removeListener('data', onData);
+        socket.setTimeout(0);
+        return resolve(socket);
       }
-      if (stage === 'auth') {
-        if (data[1] !== 0x00) { socket.destroy(); return reject(new Error('socks5: auth failed')); }
-        stage = 'connect';
-        sendConnect();
-        return;
-      }
-      // connect reply
-      if (data[1] !== 0x00) { socket.destroy(); return reject(new Error(`socks5: connect failed code ${data[1]}`)); }
-      socket.removeListener('data', onData);
-      resolve(socket);
     };
     socket.on('data', onData);
 
-    function sendConnect() {
-      const host = remoteDns ? Buffer.from(targetHost) : null;
+    async function sendConnect() {
+      // `socks5://` resolves the name here, `socks5h://` leaves it to the proxy;
+      // fall back to the proxy's resolver when the local lookup fails.
+      let host = targetHost;
+      if (!remoteDns && net.isIP(host) === 0) {
+        try { host = (await dns.promises.lookup(host, { family: 4 })).address; } catch { /* proxy resolves */ }
+      }
       const portBuf = Buffer.from([(targetPort >> 8) & 0xff, targetPort & 0xff]);
-      let addr;
       let atyp;
-      if (host) {
-        atyp = 0x03;
-        addr = Buffer.concat([Buffer.from([host.length]), host]);
-      } else if (net.isIP(targetHost) === 4) {
+      let addr;
+      if (net.isIP(host) === 4) {
         atyp = 0x01;
-        addr = Buffer.from(targetHost.split('.').map(Number));
+        addr = Buffer.from(host.split('.').map(Number));
       } else {
         atyp = 0x03;
-        addr = Buffer.concat([Buffer.from([targetHost.length]), Buffer.from(targetHost)]);
+        addr = Buffer.concat([Buffer.from([host.length]), Buffer.from(host)]);
       }
       socket.write(Buffer.concat([Buffer.from([0x05, 0x01, 0x00, atyp]), addr, portBuf]));
     }
@@ -175,17 +199,16 @@ function socks5Connect(proxy, targetHost, targetPort, remoteDns) {
  * Perform `fetch`-like HTTP(S) request through a proxy.
  * Returns { ok, status, headers, text }.
  */
-async function proxiedFetch(proxy, url, { method = 'GET', headers = {}, body } = {}) {
+async function proxiedFetch(proxy, url, { method = 'GET', headers = {}, body, timeoutMs = 60000 } = {}) {
   const u = new URL(url);
   const isHttps = u.protocol === 'https:';
   const targetPort = +u.port || (isHttps ? 443 : 80);
-
   const socket = proxy.scheme.startsWith('socks')
-    ? await socks5Connect(proxy, u.hostname, targetPort, proxy.scheme === 'socks5h')
-    : await httpConnect(proxy, u.hostname, targetPort);
+    ? await socks5Connect(proxy, u.hostname, targetPort, proxy.scheme === 'socks5h', timeoutMs)
+    : await httpConnect(proxy, u.hostname, targetPort, timeoutMs);
 
   const agent = isHttps ? https : http;
-  const hdrs = { ...headers, Host: u.hostname };
+  const hdrs = { ...headers, Host: u.host };
   const bodyBuf = body !== undefined && body !== null ? Buffer.from(body) : null;
   if (bodyBuf) hdrs['Content-Length'] = bodyBuf.length;
 
@@ -198,7 +221,6 @@ async function proxiedFetch(proxy, url, { method = 'GET', headers = {}, body } =
         path: u.pathname + u.search,
         headers: hdrs,
         socket,
-        agent: false,
         createConnection: () => (isHttps
           ? tls.connect({ socket, servername: u.hostname })
           : socket),
@@ -218,6 +240,7 @@ async function proxiedFetch(proxy, url, { method = 'GET', headers = {}, body } =
       },
     );
     req.on('error', reject);
+    req.setTimeout(timeoutMs, () => req.destroy(new Error(`proxy: no response within ${timeoutMs}ms`)));
     if (bodyBuf) req.write(bodyBuf);
     req.end();
   });

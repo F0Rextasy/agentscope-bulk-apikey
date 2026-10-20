@@ -21,6 +21,7 @@
  * never receive the code.
  */
 
+const crypto = require('crypto');
 const ORIGIN = 'https://platform.agentscope.io';
 const API = `${ORIGIN}/api/v1`;
 const V1 = `${ORIGIN}/v1`;
@@ -28,6 +29,8 @@ const V1 = `${ORIGIN}/v1`;
 const UA =
   'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) ' +
   'Chrome/126.0.0.0 Safari/537.36';
+/** Every call gets a deadline so one dead connection cannot stall the whole batch. */
+const FETCH_TIMEOUT_MS = 60000;
 
 /** Minimal cookie jar used by the direct-fetch transport. */
 class CookieJar {
@@ -88,6 +91,7 @@ class AgentScope {
       method,
       headers: { ...hdrs, ...(cookie ? { Cookie: cookie } : {}) },
       ...(body ? { body: JSON.stringify(body) } : {}),
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
     this.jar.absorb(res);
     const text = await res.text();
@@ -173,7 +177,7 @@ class AgentScope {
  */
 async function provisionAccount({ inbox, waitCode, password, transport = null, log = () => {} }) {
   const client = new AgentScope({ transport });
-  const pass = password || `As${Math.random().toString(36).slice(2, 10)}!Aa1`;
+  const pass = password || `As${crypto.randomBytes(6).toString('hex')}!Aa1`;
 
   log(`[1/5] request verify code -> ${inbox.address}`);
   await client.sendVerifyCode(inbox.address, 'register');

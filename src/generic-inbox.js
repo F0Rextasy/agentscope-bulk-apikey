@@ -26,8 +26,10 @@
  * point INBOX_CREATE_URL at your own tiny proxy that speaks this contract.
  */
 
-const http = require('http');
-const https = require('https');
+const { extractCodeFrom } = require('./mailtm');
+
+/** Every outbound call gets a deadline so a dead broker cannot stall a batch. */
+const FETCH_TIMEOUT_MS = 60000;
 
 function dig(obj, path) {
   if (!path) return obj;
@@ -50,7 +52,12 @@ async function req(url, { method = 'GET', token, body, transport } = {}) {
     if (!r.ok) throw new Error(`inbox ${method} ${url} -> ${r.status}`);
     return JSON.parse(r.text);
   }
-  const res = await fetch(url, { method, headers, ...(body ? { body: JSON.stringify(body) } : {}) });
+  const res = await fetch(url, {
+    method,
+    headers,
+    ...(body ? { body: JSON.stringify(body) } : {}),
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  });
   const text = await res.text();
   if (!res.ok) throw new Error(`inbox ${method} ${url} -> ${res.status}: ${text.slice(0, 120)}`);
   return JSON.parse(text);
@@ -106,8 +113,7 @@ class GenericInbox {
       else if (v) parts.push(String(v));
     }
     parts.push(String(message.subject || ''));
-    const m = parts.join('\n').match(/\b(\d{4,8})\b/);
-    return m ? m[1] : null;
+    return extractCodeFrom(parts.join('\n'));
   }
 
   async waitForMessage(inbox, matcher, { timeoutMs = 120000, intervalMs = 4000 } = {}) {

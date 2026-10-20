@@ -37,6 +37,7 @@ function parseArgs(argv) {
 }
 
 function bool(v) { return v === true || v === 'true' || v === '1' || v === 'yes'; }
+function int(v, d) { const n = parseInt(v, 10); return Number.isFinite(n) ? n : d; }
 
 function banner() {
   console.log(`
@@ -60,16 +61,16 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (bool(args.help) || bool(args.h)) { banner(); console.log(HELP); return; }
 
-  const count = Math.max(1, parseInt(args.count || '1', 10));
+  const count = Math.max(1, int(args.count, 1));
   const connectRouter = bool(args['connect-9router']) || bool(args.connect);
   const routerBase = args.router || 'http://localhost:20128';
   const routerPassword = args['router-password'] || process.env.NINEROUTER_PASSWORD || '123456';
   const prefix = args.prefix || 'agentscope';
   const outJson = args.out || 'accounts.json';
   const outCsv = args.csv || null;
-  const delayMs = parseInt(args.delay || '2000', 10);
+  const delayMs = int(args.delay, 2000);
   const password = args.password || null;
-  const verifyTimeout = parseInt(args['code-timeout'] || '300000', 10);
+  const verifyTimeout = int(args['code-timeout'], 300000);
   const proxyUrl = args.proxy || process.env.AGENTSCOPE_PROXY || null;
 
   banner();
@@ -120,9 +121,9 @@ async function main() {
         mailboxFor: () => mail,
         transport,
         password,
-        attempts: parseInt(args['attempts'] || '3', 10),
+        attempts: int(args.attempts, 3),
         timeoutMs: verifyTimeout,
-        resendMs: parseInt(args['resend'] || '90000', 10),
+        resendMs: int(args.resend, 90000),
         log: (m) => console.log('  ' + m),
       });
       console.log(`  ✓ key: ${acct.apiKey.slice(0, 14)}… (${acct.models.length} models)`);
@@ -159,8 +160,8 @@ async function main() {
       results.push({ error: e.message, email: null });
     }
 
-    fs.writeFileSync(outJson, JSON.stringify(results.filter((r) => !r.error), null, 2));
-    if (outCsv) fs.writeFileSync(outCsv, toCsv(results.filter((r) => !r.error)));
+    fs.writeFileSync(outJson, JSON.stringify(results.filter((r) => !r.error), null, 2), { mode: 0o600 });
+    if (outCsv) fs.writeFileSync(outCsv, toCsv(results.filter((r) => !r.error)), { mode: 0o600 });
     if (i < count && delayMs) await new Promise((r) => setTimeout(r, delayMs));
   }
 

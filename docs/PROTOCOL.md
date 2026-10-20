@@ -10,7 +10,7 @@ audited and re-implemented. All AgentScope endpoints are under
 POST /api/v1/auth/send-verify-email-code
 Content-Type: application/json
 
-{ "account": "user@example.com", "purpose": "register" }
+{ "account": "user@<domain>", "purpose": "register" }
 ```
 
 Response `200`:

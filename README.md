@@ -35,7 +35,7 @@
 ## 🚀 Quick start
 
 ```bash
-git clone https://github.com/0xgetz/agentscope-bulk-apikey
+git clone https://github.com/F0Rextasy/agentscope-bulk-apikey
 cd agentscope-bulk-apikey
 
 # 1 account, behind a residential proxy, into a local 9Router

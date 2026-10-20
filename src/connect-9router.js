@@ -26,7 +26,11 @@ async function login(base, password) {
     headers: { 'Content-Type': 'application/json', 'User-Agent': UA },
     body: JSON.stringify({ password: password ?? '123456' }),
   });
-  const sc = typeof res.headers.getSetCookie === 'function' ? res.headers.getSetCookie() : [];
+  // Older Node 18 builds have no getSetCookie(); fall back so the login cookie is
+  // not silently dropped and every later call 401s.
+  const sc = typeof res.headers.getSetCookie === 'function'
+    ? res.headers.getSetCookie()
+    : (res.headers.get('set-cookie') ? [res.headers.get('set-cookie')] : []);
   const cookie = sc.map((c) => c.split(';')[0]).join('; ');
   return { ok: res.ok, cookie, body: (await res.text()).slice(0, 200) };
 }

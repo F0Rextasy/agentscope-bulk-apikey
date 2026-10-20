@@ -49,7 +49,7 @@ class RawWebSocket extends EventEmitter {
     this.timeoutMs = timeoutMs;
     this.buffer = Buffer.alloc(0);
     this.connected = false;
-    this._queue = [];
+    this._frag = null;
   }
 
   connect() {
@@ -150,8 +150,16 @@ class RawWebSocket extends EventEmitter {
       }
       this.buffer = this.buffer.slice(offset + len);
 
-      if (opcode === 0x1) {
-        this.emit('message', payload.toString('utf8'));
+      const fin = (b0 & 0x80) !== 0;
+      if (opcode === 0x1 || opcode === 0x0) {
+        // A large message arrives as a text frame plus continuation frames.
+        if (opcode === 0x1) this._frag = [payload];
+        else if (this._frag) this._frag.push(payload);
+        else continue; // continuation with no start frame: drop it
+        if (!fin) continue;
+        const full = Buffer.concat(this._frag);
+        this._frag = null;
+        this.emit('message', full.toString('utf8'));
       } else if (opcode === 0x8) {
         this.emit('close');
         this.socket && this.socket.end();
@@ -187,7 +195,6 @@ class CDP extends EventEmitter {
     this.opts = opts;
     this._id = 0;
     this._pending = new Map();
-    this._sessions = new Map();
     this._listeners = new Map();
     this.defaultSessionId = null;
   }
@@ -288,7 +295,7 @@ class CDP extends EventEmitter {
   /**
    * Creates an isolated incognito-like browser context. Accounts created in
    * separate contexts do not share cookies or localStorage, which is required
-   * when minting many independent River accounts in one browser.
+   * when minting many independent AgentScope accounts in one browser.
    */
   async createBrowserContext() {
     const { browserContextId } = await this.send('Target.createBrowserContext', { disposeOnDetach: false }, null);
