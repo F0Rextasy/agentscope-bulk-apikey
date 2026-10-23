@@ -21,7 +21,6 @@ const { GenericInbox } = require('./generic-inbox');
 const { BrowserTransport } = require('./browser-transport');
 const { ProxyTransport } = require('./proxy');
 const { provisionAccount, provisionWithRetry, waitForCode } = require('./agentscope');
-const router = require('./connect-9router');
 
 const VERSION = require('../package.json').version;
 
@@ -62,10 +61,12 @@ async function main() {
   if (bool(args.help) || bool(args.h)) { banner(); console.log(HELP); return; }
 
   const count = Math.max(1, int(args.count, 1));
-  const connectRouter = bool(args['connect-9router']) || bool(args.connect);
+  const connectOr = bool(args['connect-omniroute']);
+  const connectRouter = bool(args['connect-9router']) || bool(args.connect) || connectOr;
+  const routerMod = connectOr ? require('./connect-omniroute') : require('./connect-9router');
+  const routerLabel = connectOr ? 'OmniRoute' : '9Router';
   const routerBase = args.router || 'http://localhost:20128';
   const routerPassword = args['router-password'] || process.env.NINEROUTER_PASSWORD || '123456';
-  const prefix = args.prefix || 'agentscope';
   const outJson = args.out || 'accounts.json';
   const outCsv = args.csv || null;
   const delayMs = int(args.delay, 2000);
@@ -81,7 +82,7 @@ async function main() {
   } else {
     console.log(`  CDP        : ${args.cdp || process.env.BU_CDP_WS || 'http://127.0.0.1:9222 (default)'}`);
   }
-  console.log(`  connect 9R : ${connectRouter ? `yes -> ${routerBase}` : 'no'}`);
+  console.log(`  connect    : ${connectRouter ? `yes -> ${routerBase} (${routerLabel})` : 'no'}`);
   console.log(`  output     : ${outJson}${outCsv ? ` + ${outCsv}` : ''}\n`);
 
   // ── choose transport: proxy (preferred) or a browser over CDP ──
@@ -105,11 +106,11 @@ async function main() {
 
   let routerCookie = null;
   if (connectRouter) {
-    console.log('→ 9Router login …');
-    const { cookie, ok, body } = await router.login(routerBase, routerPassword);
+    console.log(`→ ${routerLabel} login …`);
+    const { cookie, ok, body } = await routerMod.login(routerBase, routerPassword);
     if (!ok) console.log(`  (login returned not-ok; body=${String(body).slice(0, 80)})`);
     routerCookie = cookie;
-    console.log('  9Router ready\n');
+    console.log(`  ${routerLabel} ready\n`);
   }
 
   const results = [];
@@ -139,7 +140,7 @@ async function main() {
 
       if (connectRouter) {
         try {
-          const conn = await router.connect({
+          const conn = await routerMod.connect({
             base: routerBase,
             password: routerPassword,
             apiKey: acct.apiKey,
@@ -148,10 +149,10 @@ async function main() {
             defaultModel: 'qwen3.8-flash',
           });
           row.router = conn;
-          console.log(`  ✓ 9Router connection ${conn.connectionId} (prefix ${prefix})`);
+          console.log(`  ✓ ${routerLabel} connection ${conn.connectionId} (prefix ${prefix})`);
         } catch (e) {
           row.routerError = e.message;
-          console.log(`  ! 9Router connect failed: ${e.message}`);
+          console.log(`  ! ${routerLabel} connect failed: ${e.message}`);
         }
       }
       results.push(row);
@@ -171,11 +172,11 @@ async function main() {
 
   if (connectRouter && ok.length) {
     try {
-      const clientKey = await router.ensureClientKey(routerBase, routerCookie, 'agentscope');
-      const models = await router.listRouterModels(routerBase, clientKey);
-      console.log(`\n   9Router endpoint : ${routerBase}/v1`);
-      console.log(`   9Router API key  : ${clientKey}`);
-      console.log(`   models via router: ${models.join(', ') || '(none yet)'}`);
+      const clientKey = await routerMod.ensureClientKey(routerBase, routerCookie, 'agentscope');
+      const models = await routerMod.listRouterModels(routerBase, clientKey);
+      console.log(`\n   ${routerLabel} endpoint : ${routerBase}/v1`);
+      console.log(`   ${routerLabel} API key  : ${clientKey}`);
+      console.log(`   models via router  : ${models.join(', ') || '(none yet)'}`);
     } catch (e) {
       console.log(`   (could not read router models: ${e.message})`);
     }
@@ -191,9 +192,10 @@ Options:
   --cdp <ws-url>           CDP WebSocket URL of your Chrome          (default http://127.0.0.1:9222)
   --password <pw>          fixed password for every account          (default random)
   --connect-9router        register each account into a 9Router instance
-  --router <url>           9Router base URL                           (default http://localhost:20128)
-  --router-password <pw>   9Router login password                     (default 123456)
-  --prefix <p>             provider prefix in 9Router                 (default agentscope)
+  --connect-omniroute      register each account into an OmniRoute instance
+  --router <url>           router base URL                            (default http://localhost:20128)
+  --router-password <pw>   router login password                      (default 123456)
+  --prefix <p>             provider prefix in the router              (default agentscope)
   --out <file>             JSON output path                           (default accounts.json)
   --csv <file>             also write a CSV
   --delay <ms>             pause between accounts                     (default 2000)

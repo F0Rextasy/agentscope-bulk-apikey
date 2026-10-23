@@ -88,6 +88,19 @@ Models   : agentscope/qwen3.8-flash, agentscope/qwen3.7-plus, agentscope/qwen3.8
            agentscope/kimi-k3, agentscope/glm-5.2
 ```
 
+## 🔌 连接到 OmniRoute
+
+```bash
+npm install -g omniroute && omniroute        # 面板 http://localhost:20128
+```
+
+```
+Endpoint : http://localhost:20128/v1
+API key  : sk-<omniroute 密钥>
+Models   : agentscope/qwen3.8-flash, agentscope/qwen3.7-plus, agentscope/qwen3.8-max,
+           agentscope/kimi-k3, agentscope/glm-5.2
+```
+
 ## 🧠 可用模型
 
 `sk-as-…` 密钥提供以下模型（来自 `GET /v1/models`），经 9Router 以 `agentscope/`

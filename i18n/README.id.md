@@ -88,6 +88,19 @@ Model    : agentscope/qwen3.8-flash, agentscope/qwen3.7-plus, agentscope/qwen3.8
            agentscope/kimi-k3, agentscope/glm-5.2
 ```
 
+## 🔌 Sambungkan ke OmniRoute
+
+```bash
+npm install -g omniroute && omniroute        # dasbor di http://localhost:20128
+```
+
+```
+Endpoint : http://localhost:20128/v1
+API key  : sk-<kunci omniroute>
+Model    : agentscope/qwen3.8-flash, agentscope/qwen3.7-plus, agentscope/qwen3.8-max,
+           agentscope/kimi-k3, agentscope/glm-5.2
+```
+
 ## 🧠 Model yang tersedia
 
 Kunci `sk-as-…` melayani model berikut (dari `GET /v1/models`), dirutekan lewat

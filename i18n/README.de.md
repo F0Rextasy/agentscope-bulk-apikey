@@ -88,6 +88,19 @@ Models   : agentscope/qwen3.8-flash, agentscope/qwen3.7-plus, agentscope/qwen3.8
            agentscope/kimi-k3, agentscope/glm-5.2
 ```
 
+## 🔌 Mit OmniRoute verbinden
+
+```bash
+npm install -g omniroute && omniroute        # Dashboard auf http://localhost:20128
+```
+
+```
+Endpoint : http://localhost:20128/v1
+API key  : sk-<omniroute-Schlüssel>
+Models   : agentscope/qwen3.8-flash, agentscope/qwen3.7-plus, agentscope/qwen3.8-max,
+           agentscope/kimi-k3, agentscope/glm-5.2
+```
+
 ## 🧠 Verfügbare Modelle
 
 Ein `sk-as-…`-Schlüssel bedient diese Modelle (laut `GET /v1/models`), über

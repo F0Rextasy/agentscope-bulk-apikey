@@ -11,11 +11,18 @@
 [![Dependencies](https://img.shields.io/badge/dependencies-0-blue.svg?style=for-the-badge)](#)
 [![OpenAI compatible](https://img.shields.io/badge/API-OpenAI--compatible-412991.svg?style=for-the-badge&logo=openai&logoColor=white)](https://platform.agentscope.io)
 [![9Router](https://img.shields.io/badge/9Router-connector-8B5CF6.svg?style=for-the-badge)](#-connect-to-9router)
+[![OmniRoute](https://img.shields.io/badge/OmniRoute-connector-8B5CF6.svg?style=for-the-badge)](#-connect-to-omniroute)
 [![Proxy](https://img.shields.io/badge/transport-HTTP%20%7C%20SOCKS5%20%7C%20CDP-0EA5E9.svg?style=for-the-badge)](#-transports)
 [![mail.tm](https://img.shields.io/badge/inbox-mail.tm-22C55E.svg?style=for-the-badge)](https://mail.tm)
-[![Languages](https://img.shields.io/badge/i18n-5%20languages-F59E0B.svg?style=for-the-badge)](#)
+[![Languages](https://img.shields.io/badge/i18n-10%20languages-F59E0B.svg?style=for-the-badge)](#)
 
-[English](README.md) · [Bahasa Indonesia](i18n/README.id.md) · [简体中文](i18n/README.zh.md) · [日本語](i18n/README.ja.md) · [Español](i18n/README.es.md) · [Deutsch](i18n/README.de.md)
+[✨ Features](#-features) · [🚀 Quick start](#-quick-start) · [🛠 Usage](#-usage) · [🌐 Transports](#-transports) · [🔌 9Router](#-connect-to-9router) · [🔌 OmniRoute](#-connect-to-omniroute) · [🧠 Models](#-available-models) · [📚 Library](#-as-a-library) · [⚙️ How it works](#️-how-it-works) · [📄 License](#-license)
+
+</div>
+
+<div align="center">
+
+**English** · [Türkçe](README.tr.md) · [中文](README.cn.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Español](README.es.md) · [Français](README.fr.md) · [Deutsch](README.de.md) · [Русский](README.ru.md) · [Português](README.pt.md)
 
 </div>
 
@@ -30,7 +37,7 @@
 - 🪶 **Zero dependencies** — pure Node.js ≥ 18. No `npm install`, no build step.
 - 📦 **Exports** — results written to JSON **and** optional CSV.
 - 🧩 **Library or CLI** — use `provisionAccount()` in code, or run the bundled `agentscope-bulk` command.
-- 🌍 **5 languages** — EN, ID, ZH, JA, ES, DE.
+- 🌍 **10 languages** — EN, TR, ZH, JA, KO, ES, FR, DE, RU, PT.
 
 ## 🚀 Quick start
 
@@ -45,7 +52,7 @@ node src/cli.js \
   --connect-9router --router http://localhost:20128 --router-password 123456
 ```
 
-That prints the created account, its `sk-as-…` key, the 9Router connection id, and the router endpoint + key you can point any OpenAI-compatible tool at.
+That prints the created account, its `sk-as-…` key, the router connection id, and the router endpoint + key you can point any OpenAI-compatible tool at. Swap `--connect-9router` for `--connect-omniroute` to register into OmniRoute instead.
 
 ### 🖱️ The launcher
 
@@ -113,6 +120,11 @@ npm install -g 9router && 9router        # dashboard on http://localhost:20128
 
 The connector registers one `openai-compatible` provider-node (prefix `agentscope`), attaches each account key as a connection, and mints a 9Router client key:
 
+```bash
+node src/cli.js --count 1 --connect-9router      # mint + register in one pass
+node src/connect-9router.js                      # or register the keys you already have
+```
+
 ```
 Endpoint : http://localhost:20128/v1
 API key  : sk-<9router key>
@@ -125,6 +137,37 @@ Call it like any OpenAI endpoint:
 ```bash
 curl http://localhost:20128/v1/chat/completions \
   -H "Authorization: Bearer sk-<9router key>" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"agentscope/qwen3.8-flash","messages":[{"role":"user","content":"hi"}]}'
+```
+
+## 🔌 Connect to OmniRoute
+
+OmniRoute is a self-hosted, OpenAI-compatible router:
+
+```bash
+npm install -g omniroute && omniroute        # dashboard on http://localhost:20128
+```
+
+The connector registers one `openai-compatible` provider-node (prefix `agentscope`), attaches each account key as a connection, and mints an OmniRoute client key:
+
+```bash
+node src/cli.js --count 1 --connect-omniroute    # mint + register in one pass
+node src/connect-omniroute.js                    # or register the keys you already have
+```
+
+```
+Endpoint : http://localhost:20128/v1
+API key  : sk-<omniroute key>
+Models   : agentscope/qwen3.8-flash, agentscope/qwen3.7-plus, agentscope/qwen3.8-max,
+           agentscope/kimi-k3, agentscope/glm-5.2
+```
+
+Call it like any OpenAI endpoint:
+
+```bash
+curl http://localhost:20128/v1/chat/completions \
+  -H "Authorization: Bearer sk-<omniroute key>" \
   -H "Content-Type: application/json" \
   -d '{"model":"agentscope/qwen3.8-flash","messages":[{"role":"user","content":"hi"}]}'
 ```

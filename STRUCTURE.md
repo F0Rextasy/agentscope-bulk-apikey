@@ -7,6 +7,7 @@ agentscope-bulk-apikey/
 │   ├── agentscope.js           # AgentScope REST flow + access-token capture
 │   ├── mailtm.js               # mail.tm disposable-inbox client
 │   ├── connect-9router.js      # register AgentScope as a 9Router provider
+│   ├── connect-omniroute.js    # register AgentScope as an OmniRoute provider
 │   ├── browser-transport.js    # drive Chrome over CDP for HTTP requests
 │   ├── proxy.js                # HTTP(S) + SOCKS5 proxy transport (zero-dep)
 │   ├── cdp.js                  # raw WebSocket + CDP client (RFC6455, no deps)
@@ -23,14 +24,17 @@ agentscope-bulk-apikey/
 │   ├── logo.svg                # full-colour logo
 │   └── icon.svg                # app-style icon
 │
-├── i18n/                       # translations of the README
-│   ├── README.id.md            # Bahasa Indonesia
-│   ├── README.zh.md            # 简体中文
-│   ├── README.ja.md            # 日本語
-│   ├── README.es.md            # Español
-│   └── README.de.md            # Deutsch
-│
 ├── README.md                   # English (default)
+├── README.tr.md                # Türkçe
+├── README.cn.md                # 中文
+├── README.ja.md                # 日本語
+├── README.ko.md                # 한국어
+├── README.es.md                # Español
+├── README.fr.md                # Français
+├── README.de.md                # Deutsch
+├── README.ru.md                # Русский
+├── README.pt.md                # Português
+│
 ├── STRUCTURE.md                # this file
 ├── LICENSE                     # MIT
 └── package.json

@@ -14,6 +14,7 @@
  * Usage: node src/launcher.js            (menu)
  *        node src/launcher.js --help
  *        node src/launcher.js --connect-9router
+node src/launcher.js --connect-omniroute
  */
 
 const fs = require('fs');
@@ -221,10 +222,55 @@ async function nineRouter(cfg) {
   console.log(`\nDone. ${added}/${rows.length} connection(s) registered under prefix ${cfg.nineRouter.prefix}/`);
 }
 
+async function omniRouter(cfg) {
+  console.log('\nOmniRoute — register every minted key as one connection');
+  cfg.nineRouter.base = await ask('OmniRoute base URL', cfg.nineRouter.base);
+  cfg.nineRouter.password = await ask('OmniRoute password', cfg.nineRouter.password);
+  const accountsFile = await ask('Account records file to walk', cfg.out);
+  cfg.out = accountsFile;
+  cfg.nineRouter.prefix = await ask('Provider prefix in OmniRoute', cfg.nineRouter.prefix);
+  cfg.nineRouter.defaultModel = await ask('Default model for the connections', cfg.nineRouter.defaultModel);
+  saveConfig(cfg);
+
+  const rows = readAccounts(accountsFile);
+  if (!rows || !rows.length) {
+    console.log(`  ! no API keys found in ${accountsFile} — mint some first (menu 1)`);
+    return;
+  }
+
+  const router = require('./connect-omniroute.js');
+  console.log(`\n▶ ${rows.length} key(s) from ${accountsFile} → ${cfg.nineRouter.base}\n`);
+  let added = 0;
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    try {
+      const conn = await router.connect({
+        base: cfg.nineRouter.base,
+        password: cfg.nineRouter.password,
+        apiKey: row.apiKey,
+        name: row.email ? `AgentScope ${row.email}` : `AgentScope ${i + 1}`,
+        prefix: cfg.nineRouter.prefix,
+        defaultModel: cfg.nineRouter.defaultModel,
+      });
+      console.log(`  ✓ ${row.email || row.apiKey.slice(0, 12) + '…'} → connection ${conn.connectionId}`);
+      added += 1;
+    } catch (e) {
+      console.log(`  ! ${row.email || `key ${i + 1}`}: ${e.message}`);
+    }
+  }
+  console.log(`\nDone. ${added}/${rows.length} connection(s) registered under prefix ${cfg.nineRouter.prefix}/`);
+}
+
 async function main() {
   const cfg = loadConfig();
   if (process.argv.includes('--connect-9router')) {
     await nineRouter(cfg);
+    rl.close();
+    return;
+  }
+
+  if (process.argv.includes('--connect-omniroute')) {
+    await omniRouter(cfg);
     rl.close();
     return;
   }
@@ -234,6 +280,7 @@ async function main() {
   console.log('  3) Settings       — show what this launcher remembers');
   console.log('  4) Help           — CLI options and notes');
   console.log('  5) Connect to 9Router — register every minted key with a local 9Router');
+  console.log('  6) Connect to OmniRoute — register every minted key with a local OmniRoute');
   console.log('  q) Quit\n');
   const choice = (await ask('Choose', '1')).toLowerCase();
 
@@ -245,6 +292,7 @@ async function main() {
   } else if (choice === '3') console.log('\n' + JSON.stringify(cfg, null, 2));
   else if (choice === '4') run(['--help']);
   else if (choice === '5') await nineRouter(cfg);
+  else if (choice === '6') await omniRouter(cfg);
   rl.close();
 }
 
