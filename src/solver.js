@@ -1,7 +1,14 @@
 'use strict';
 
 /**
- * Minimal, dependency-free Chrome DevTools Protocol client.
+ * The browser rail — a minimal, dependency-free Chrome DevTools Protocol client.
+ *
+ * AgentScope's verification-mail gateway drops datacenter IPs, so the register
+ * flow is fed from inside a real Chrome; the panel's own bundle carries no
+ * captcha widget (scanned 2026-10-24: zero turnstile/captcha references), so the
+ * challenge answered here is the browser one — this module is the rail that
+ * talks to YOUR Chrome, and the single place that says `chrome not found`
+ * (plus the one-line fix) when none is listening.
  *
  * Speaks the CDP JSON protocol over a WebSocket. Node's global WebSocket
  * cannot send custom headers, so we implement a tiny RFC6455 client on top of
@@ -328,4 +335,18 @@ class CDP extends EventEmitter {
   }
 }
 
-module.exports = { CDP, RawWebSocket };
+/**
+ * The DevTools endpoint of the user's Chrome, or a clear one-line fix. Without
+ * this a missing Chrome surfaces as a bare `fetch failed` and the user is left
+ * guessing which port to open.
+ */
+async function chromeEndpoint(explicit) {
+  if (explicit) return explicit;
+  const info = await fetch('http://127.0.0.1:9222/json/version').then((r) => r.json()).catch(() => null);
+  if (!info || !info.webSocketDebuggerUrl) {
+    throw new Error('chrome not found at 127.0.0.1:9222 — start Chrome with --remote-debugging-port=9222, or pass --cdp <ws-url> / BU_CDP_WS (a plain fetch from this host never receives the e-mail code)');
+  }
+  return info.webSocketDebuggerUrl;
+}
+
+module.exports = { CDP, RawWebSocket, chromeEndpoint };

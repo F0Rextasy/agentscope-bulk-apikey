@@ -22,6 +22,8 @@
  */
 
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 const ORIGIN = 'https://platform.agentscope.io';
 const API = `${ORIGIN}/api/v1`;
 const V1 = `${ORIGIN}/v1`;
@@ -31,6 +33,23 @@ const UA =
   'Chrome/126.0.0.0 Safari/537.36';
 /** Every call gets a deadline so one dead connection cannot stall the whole batch. */
 const FETCH_TIMEOUT_MS = 60000;
+
+/**
+ * Dead-key report: `key<TAB>reason<TAB>ISO`, one line per key the panel refused.
+ * Only a refusal is a verdict — 401/402/403/410 are filed, while a 404, a 429,
+ * a 5xx or a transport error means "try again" and is never written.
+ */
+const DEAD_FILE = path.join(process.cwd(), 'keys-dead.txt');
+const DEAD_STATUS = new Set([401, 402, 403, 410]);
+function fileDeadKey(key, status, sample) {
+  const s = Number(status);
+  if (!DEAD_STATUS.has(s)) return null;
+  const t = String(sample || '');
+  const why = /quota|balance|credit|insufficient|exceed/i.test(t) ? `${s} quota`
+    : /ban|suspend|disabl|forbidden|block/i.test(t) ? `${s} ban` : String(s);
+  try { fs.appendFileSync(DEAD_FILE, `${key}\t${why}\t${new Date().toISOString()}\n`); } catch { /* a report must never break the run */ }
+  return why;
+}
 
 /** Minimal cookie jar used by the direct-fetch transport. */
 class CookieJar {
@@ -156,10 +175,16 @@ class AgentScope {
    * inference endpoint rejects, so always pass `apiKey` after minting.
    */
   async listModels(apiKey = this.apiKey || this.token) {
-    const { ok, data, text } = await this._fetch(`${V1}/models`, {
+    const { ok, status, data, text } = await this._fetch(`${V1}/models`, {
       headers: { Accept: 'application/json', Authorization: `Bearer ${apiKey}` },
     });
-    if (!ok) throw new Error(`listModels -> ${text.slice(0, 120)}`);
+    if (!ok) {
+      // `status` rides on the error: it is what tells a refusal (dead key) from
+      // a blip, and the caller files the key on the strength of it.
+      const err = new Error(`listModels -> ${status}: ${text.slice(0, 120)}`);
+      err.status = status;
+      throw err;
+    }
     return (data && data.data ? data.data : []).map((m) => m.id);
   }
 }
@@ -313,4 +338,4 @@ async function provisionWithRetry({
   throw lastErr || new Error('provisioning failed');
 }
 
-module.exports = { AgentScope, CookieJar, provisionAccount, provisionWithRetry, waitForCode, ORIGIN, API, V1, UA };
+module.exports = { AgentScope, CookieJar, provisionAccount, provisionWithRetry, waitForCode, fileDeadKey, DEAD_FILE, ORIGIN, API, V1, UA };

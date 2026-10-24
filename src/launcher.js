@@ -148,7 +148,7 @@ async function mintFlow(cfg) {
   saveConfig(cfg);
 
   const args = [
-    '--count', String(cfg.count),
+    '--auto', '--count', String(cfg.count),
     '--prefix', cfg.prefix,
     '--out', cfg.out,
     '--delay', String(cfg.delay),

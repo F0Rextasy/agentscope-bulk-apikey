@@ -21,4 +21,5 @@ Thumbs.db
 
 # credential files — never committed (scanner gate: literal names)
 keys.txt
+keys-dead.txt
 proxies.txt

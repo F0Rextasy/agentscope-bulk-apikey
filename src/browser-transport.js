@@ -17,7 +17,7 @@
  *   - any CDP WebSocket URL (e.g. a cloud browser) via BU_CDP_WS.
  */
 
-const { CDP } = require('./cdp');
+const { CDP, chromeEndpoint } = require('./solver');
 
 const PAGE_ORIGIN = 'https://platform.agentscope.io';
 
@@ -31,11 +31,7 @@ class BrowserTransport {
 
   async connect() {
     if (this.cdp) return this;
-    let wsUrl = this.cdpUrl;
-    if (!wsUrl) {
-      const info = await fetch('http://127.0.0.1:9222/json/version').then((r) => r.json());
-      wsUrl = info.webSocketDebuggerUrl;
-    }
+    const wsUrl = await chromeEndpoint(this.cdpUrl);
     this.cdp = new CDP(wsUrl, { commandTimeoutMs: this.timeoutMs });
     await this.cdp.connect();
     this._targetId = null;

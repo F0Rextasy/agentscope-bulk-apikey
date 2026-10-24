@@ -10,7 +10,7 @@ agentscope-bulk-apikey/
 │   ├── connect-omniroute.js    # register AgentScope as an OmniRoute provider
 │   ├── browser-transport.js    # drive Chrome over CDP for HTTP requests
 │   ├── proxy.js                # HTTP(S) + SOCKS5 proxy transport (zero-dep)
-│   ├── cdp.js                  # raw WebSocket + CDP client (RFC6455, no deps)
+│   ├── solver.js               # the browser rail: raw WebSocket + CDP client (RFC6455, no deps)
 │   └── cli.js                  # `agentscope-bulk` command-line entry point
 │
 ├── examples/
@@ -54,7 +54,7 @@ agentscope-bulk-apikey/
                  │     ▼                       │                  ▼             │
                  │  transport                  │           accounts.json / .csv │
                  │   ├─ proxy.js      (HTTP/SOCKS5)                             │
-                 │   ├─ browser-transport.js (Chrome · CDP · cdp.js)            │
+                 │   ├─ browser-transport.js (Chrome · CDP · solver.js)         │
                  │   └─ plain fetch   (fallback)                                │
                  └─────┬───────────────────────┬──────────────────────────────┘
                        │                       │

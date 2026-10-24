@@ -9,6 +9,7 @@
  *   node src/cli.js --count 3 --cdp ws://127.0.0.1:9222/...
  *   node src/cli.js --count 3 --connect-9router --router http://localhost:20128
  *   node src/cli.js --count 1 --out accounts.json --csv accounts.csv
+ *   node src/cli.js --verify                 re-test the minted keys
  *
  * Zero dependencies. Node.js >= 18 (needs global fetch + a Chrome with a
  * remote-debugging port for reliable e-mail delivery).
@@ -20,7 +21,7 @@ const { MailTM, extractCode } = require('./mailtm');
 const { GenericInbox } = require('./generic-inbox');
 const { BrowserTransport } = require('./browser-transport');
 const { ProxyTransport } = require('./proxy');
-const { provisionAccount, provisionWithRetry, waitForCode } = require('./agentscope');
+const { AgentScope, provisionAccount, provisionWithRetry, waitForCode, fileDeadKey, DEAD_FILE } = require('./agentscope');
 
 const VERSION = require('../package.json').version;
 
@@ -54,6 +55,45 @@ function toCsv(rows) {
     return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
   }).join(','));
   return [head, ...body].join('\n') + '\n';
+}
+
+/**
+ * Re-test every key already minted. A refusal (401/402/403/410) files the key
+ * into keys-dead.txt as `key<TAB>reason<TAB>ISO`; a 404, a 429, a 5xx or a
+ * transport error is reported as "no verdict" and written nowhere.
+ */
+async function verifyKeys(transport, args) {
+  const file = args.out || 'accounts.json';
+  let rows = [];
+  try {
+    rows = JSON.parse(fs.readFileSync(file, 'utf8'));
+  } catch (e) {
+    console.error(`cannot read ${file}: ${e.message}`);
+    process.exitCode = 1;
+    return transport.close();
+  }
+  const keys = rows.map((r) => r.apiKey).filter(Boolean);
+  if (!keys.length) {
+    console.log(`no keys in ${file}`);
+    return transport.close();
+  }
+  console.log(`verify ${keys.length} key(s) from ${file}\n`);
+  let live = 0;
+  let dead = 0;
+  for (const key of keys) {
+    try {
+      const models = await new AgentScope({ transport }).listModels(key);
+      live++;
+      console.log(`  ✔ ${key.slice(0, 12)}… ${models.length} models`);
+    } catch (e) {
+      const why = fileDeadKey(key, e.status, e.message);
+      if (why) dead++;
+      console.log(`  ${why ? '✘' : '·'} ${key.slice(0, 12)}… ${why ? `dead (${why})` : `no verdict: ${e.message}`}`);
+    }
+  }
+  console.log(`verify: ${live}/${keys.length} live${dead ? ` · ${dead} dead → ${DEAD_FILE}` : ''}`);
+  if (live !== keys.length) process.exitCode = 1;
+  await transport.close();
 }
 
 async function main() {
@@ -98,6 +138,9 @@ async function main() {
     await transport.connect();
     console.log('  browser ready\n');
   }
+
+  // ── verify mode: re-test the keys already minted (refusals are filed) ──
+  if ('verify' in args) return verifyKeys(transport, args);
 
   const mail = GenericInbox.configured()
     ? new GenericInbox({}, { transport })
@@ -196,6 +239,8 @@ Options:
   --router <url>           router base URL                            (default http://localhost:20128)
   --router-password <pw>   router login password                      (default 123456)
   --prefix <p>             provider prefix in the router              (default agentscope)
+  --verify                 re-test every key in the accounts file (keys a
+                           panel refuses land in keys-dead.txt)
   --out <file>             JSON output path                           (default accounts.json)
   --csv <file>             also write a CSV
   --delay <ms>             pause between accounts                     (default 2000)
@@ -203,6 +248,10 @@ Options:
   --resend <ms>            re-request the code every N ms while waiting (default 90000)
   --attempts <n>           fresh-inbox attempts before giving up       (default 3)
   --help                   show this help
+
+Keys: accounts.json holds every account (e-mail, password, sk-as-… key);
+keys-dead.txt is written key<TAB>reason<TAB>iso for keys the panel REFUSED
+(401/402/403/410) — a 404, a 429 or a 5xx is never filed.
 
 Transport (pick one):
   --proxy http://user:pass@host:port   residential proxy  (recommended)
